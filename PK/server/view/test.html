@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://cdn.bootcss.com/socket.io/2.2.0/socket.io.js"></script>
+</head>
+
+<body>
+    <div>
+        <!-- <input type="text" placeholder="目标id" value="2e139beffe138e76587be8525bdfd056" id="user">
+        <input type="text" placeholder="想说的话" id="info"> -->
+        <button id="send">点我连接socket进行匹配</button>
+        <button id="userid">如果匹配到对手，点我可以获取题目信息</button>
+        <button id="answer">生成一个随机的答案给对手</button>
+        <button id="score">可以随时获取PK结果</button>
+        <button id="allrooms">get all rooms</button>
+        
+        <hr>
+        <div class="display-table"></div>
+        <br>
+        <div class="display-table2"></div>
+        <br>
+        <br>
+        <hr>
+        <h5>头像上传</h5>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="uid" name="uid">
+            <input type="file" name="file"/>
+            <input type="submit" value="ok"/>
+        </form>
+        <hr>
+        文件上传 <input type="file" id="test-file" name="file">
+    </div>
+    <script>
+        let user = document.querySelector('#user');
+        let sendBtn = document.querySelector('#send')
+        let info = document.querySelector('#info')
+        let answer = document.querySelector('#answer')
+        let score = document.querySelector('#score')
+        let userid = document.querySelector('#userid')
+        let allrooms = document.querySelector('#allrooms')
+        let testFile = document.querySelector('#test-file')
+        let displayTable = document.querySelector('.display-table')
+        let displayTable2 = document.querySelector('.display-table2')
+        let uid = location.search.split('=')[1];
+        let socket = io(`ws://192.168.31.212:8001?uid=${uid}`,{
+            autoConnect: false
+        })
+
+        sendBtn.onclick=()=>{
+            socket.open()
+        }
+
+        socket.on('disconnect', (reason) => {
+            
+            if (reason === 'io server disconnect') {
+                // the disconnection was initiated by the server, you need to reconnect manually
+                //socket.open();
+                console.log('您所在的房间已解散，请重新加入PK：socket.open()')
+                displayTable2.innerHTML=''
+                displayTable.innerHTML=''
+            }
+            // else the socket will automatically try to reconnect
+        });
+
+        socket.on('message',info=>{
+            displayTable.innerHTML = JSON.stringify(info);
+            displayTable2.innerHTML = ''
+        })
+
+        socket.on('pkinfo',data=>{
+            displayTable2.innerHTML = `PK对象：${data.username}-${data.nickname}`
+            
+        })
+
+        socket.on('error',err=>{
+            console.log(err)
+        })
+
+        socket.on('pk score',data=>{
+            console.log('对手的答题结果：',data)
+        })
+
+        userid.onclick=()=>{
+            socket.emit('get question',{
+                uid
+            },(res)=>{
+                console.log(res)
+            })
+        }
+        answer.onclick=()=>{
+            socket.emit('set score',{
+                uid, score:Math.floor(Math.random()*80), qid:'123'
+            },function(res){
+                console.log(res)
+            })
+        }
+
+        score.onclick=()=>{
+            socket.emit('get result',{uid},(res)=>{
+                console.log(res)
+            })
+        }
+
+        allrooms.onclick=()=>{
+            socket.emit('get all rooms', (res)=>{
+                console.log(res)
+            })
+        }
+
+        testFile.onchange=(e)=>{
+            let formdata = new FormData()
+            formdata.append('file',e.target.files[0])
+            fetch('/upload',{
+                "content-type":"multipart/form-data",
+                body:formdata,
+                method:"POST"
+            }).then(res=>res.json())
+            .then(res=>{
+                console.log(res)
+            })
+        }
+    </script>
+</body>
+
+</html>
